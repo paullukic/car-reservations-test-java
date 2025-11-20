@@ -1,0 +1,38 @@
+# Test profile configuration for isolated testing
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres-test:5432/cardb
+    username: user
+    password: password
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+# Actuator for health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# Logging
+logging:
+  level:
+    com.reservation.car: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: INFO
