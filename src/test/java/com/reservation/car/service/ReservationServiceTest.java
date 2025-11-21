@@ -60,6 +60,7 @@ class ReservationServiceTest {
         ReservationRequestDTO request = new ReservationRequestDTO(TestDataFactory.getTestCarId(), TestDataFactory.getTestUserId(),
             Instant.now().plusSeconds(TestConstants.ONE_HOUR_SECONDS), Instant.now().plusSeconds(TestConstants.THREE_HOURS_SECONDS));
         when(carRepository.findById(TestDataFactory.getTestCarId())).thenReturn(Optional.of(car));
+        when(reservationRepository.hasOverlappingConfirmedReservation(any(), any(), any())).thenReturn(false);
         when(reservationRepository.saveAndFlush(any())).thenReturn(reservation);
 
         // Act
@@ -88,6 +89,7 @@ class ReservationServiceTest {
         ReservationRequestDTO request = new ReservationRequestDTO(TestDataFactory.getTestCarId(), TestDataFactory.getTestUserId(),
             Instant.now().plusSeconds(TestConstants.ONE_HOUR_SECONDS), Instant.now().plusSeconds(TestConstants.THREE_HOURS_SECONDS));
         when(carRepository.findById(TestDataFactory.getTestCarId())).thenReturn(Optional.of(car));
+        when(reservationRepository.hasOverlappingConfirmedReservation(any(), any(), any())).thenReturn(false);
         when(reservationRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("conflicting key value violates exclusion constraint"));
 
         // Act & Assert
@@ -158,6 +160,7 @@ class ReservationServiceTest {
         ReservationRequestDTO request = new ReservationRequestDTO(TestDataFactory.getTestCarId(), TestDataFactory.getTestUserId(),
             Instant.now().plusSeconds(TestConstants.ONE_HOUR_SECONDS), Instant.now().plusSeconds(TestConstants.THREE_HOURS_SECONDS));
         when(carRepository.findById(TestDataFactory.getTestCarId())).thenReturn(Optional.of(car));
+        when(reservationRepository.hasOverlappingConfirmedReservation(any(), any(), any())).thenReturn(false);
         when(reservationRepository.saveAndFlush(any()))
             .thenThrow(new ConcurrencyFailureException("deadlock detected"))
             .thenReturn(reservation);
@@ -177,6 +180,7 @@ class ReservationServiceTest {
         ReservationRequestDTO request = new ReservationRequestDTO(TestDataFactory.getTestCarId(), TestDataFactory.getTestUserId(),
             Instant.now().plusSeconds(TestConstants.ONE_HOUR_SECONDS), Instant.now().plusSeconds(TestConstants.THREE_HOURS_SECONDS));
         when(carRepository.findById(TestDataFactory.getTestCarId())).thenReturn(Optional.of(car));
+        when(reservationRepository.hasOverlappingConfirmedReservation(any(), any(), any())).thenReturn(false);
         when(reservationRepository.saveAndFlush(any()))
             .thenThrow(new ConcurrencyFailureException("deadlock 1"))
             .thenThrow(new ConcurrencyFailureException("deadlock 2"))

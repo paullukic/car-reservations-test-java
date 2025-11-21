@@ -34,9 +34,13 @@ CREATE TABLE reservation (
         end_time > start_time
     ),
     
-    -- CORE CONCURRENCY: THE PARTIAL EXCLUSION CONSTRAINT
-    -- This constraint prevents overlapping time ranges ('&&' operator) 
-    -- for the same car ('=' operator) ONLY if the reservation status is 'CONFIRMED'.
+    -- SAFETY NET: Database-level exclusion constraint
+    -- Database doesn't do heavy lifting on every request
+    -- Primary validation happens in application layer (ReservationServiceImpl)
+    -- This is a last line of defense against double bookings 
+    -- constraint that catches rare race conditions where multiple requests
+    -- pass application validation simultaneously eg. 10,000 concurrent requests
+    -- which is highly unlikely.
     CONSTRAINT no_double_booking
     EXCLUDE USING GIST (
         car_id WITH =,

@@ -39,16 +39,6 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationRepository reservationRepository;
     private final CarRepository carRepository;
 
-    /**
-     * Creates a new car reservation with full validation and concurrency protection.
-     * 
-     * @param request the reservation request details
-     * @param requestingUserId the ID of the user making the request (for authorization)
-     * @return the created reservation DTO
-     * @throws CarNotFoundException if car doesn't exist
-     * @throws CarUnavailableException if the time slot is unavailable
-     * @throws InvalidReservationException if request violates business rules
-     */
     @Override
     public ReservationResponseDTO createReservation(ReservationRequestDTO request, UUID requestingUserId) {
         validateAuthorization(request, requestingUserId);
@@ -66,14 +56,6 @@ public class ReservationServiceImpl implements ReservationService {
         return ReservationResponseDTO.from(saved);
     }
 
-    /**
-     * Cancels an existing reservation if cancellation rules allow it.
-     * 
-     * @param reservationId the reservation to cancel
-     * @param userId the user requesting cancellation (for authorization)
-     * @return the cancelled reservation DTO
-     * @throws InvalidReservationException if cancellation is not allowed
-     */
     @Override
     public ReservationResponseDTO cancelReservation(UUID reservationId, UUID userId) {
         log.info("Cancelling reservation {} for user {}", reservationId, userId);
@@ -124,6 +106,20 @@ public class ReservationServiceImpl implements ReservationService {
         carRepository.findById(request.getCarId())
             .orElseThrow(() -> new CarNotFoundException(
                 "Car with ID " + request.getCarId() + " not found"));
+        
+        // Check for overlapping reservations
+        // This provides fast-fail for most conflicts and better user experience
+        // Note: The check is repeated in saveReservationWithRetry() to handle race conditions
+        boolean hasOverlap = reservationRepository.hasOverlappingConfirmedReservation(
+            request.getCarId(), 
+            request.getStartTime(), 
+            request.getEndTime()
+        );
+        
+        if (hasOverlap) {
+            throw new CarUnavailableException(
+                "Car is not available for the requested time slot. Another reservation already exists.");
+        }
     }
 
     private Reservation createReservationEntity(ReservationRequestDTO request) {
@@ -142,8 +138,32 @@ public class ReservationServiceImpl implements ReservationService {
         // Retry loop for handling concurrency issues
         while (attempts < MAX_RETRY_ATTEMPTS) {
             try {
-                // We use save and flush to ensure immediate DB write and constraint checks
+                // APPLICATION CHECK: Verify no conflicts before insert (fast B-tree index scan)
+                boolean hasOverlap = reservationRepository.hasOverlappingConfirmedReservation(
+                    reservation.getCarId(), 
+                    reservation.getStartTime(), 
+                    reservation.getEndTime()
+                );
+                
+                if (hasOverlap) {
+                    attempts++;
+                    if (attempts >= MAX_RETRY_ATTEMPTS) {
+                        throw new CarUnavailableException(
+                            "Car is not available for the requested time slot. Multiple overlapping requests detected.");
+                    }
+                    log.debug("Overlap detected on attempt {}, retrying after backoff", attempts);
+                    try {
+                        Thread.sleep(attempts * 100); // 100ms, 200ms, 300ms
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Reservation creation interrupted", ie);
+                    }
+                    continue; // Retry the check
+                }
+                
+                // No conflict detected, proceed with insert
                 return reservationRepository.saveAndFlush(reservation);
+                
             } catch (ConcurrencyFailureException e) {
                 attempts++;
                 if (attempts >= MAX_RETRY_ATTEMPTS) {
@@ -158,7 +178,10 @@ public class ReservationServiceImpl implements ReservationService {
                     throw new RuntimeException("Reservation creation interrupted", ie);
                 }
             } catch (DataIntegrityViolationException e) {
+                // DB constraint is now a SAFETY NET, not primary validation
+                // This should rarely happen now that we check in the application
                 if (DatabaseUtils.isExclusionConstraintViolation(e)) {
+                    log.warn("Database constraint caught overlap that application missed", e);
                     throw new CarUnavailableException(
                         "Car is not available for the requested time slot. Another reservation overlaps.", e);
                 } else {

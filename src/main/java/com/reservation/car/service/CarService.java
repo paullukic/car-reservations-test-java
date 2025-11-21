@@ -5,6 +5,7 @@ import java.time.Instant;
 import org.springframework.data.domain.Page;
 
 import com.reservation.car.dto.response.CarResponseDTO;
+import com.reservation.car.exception.InvalidReservationException;
 
 /**
  * Service interface for managing car fleet operations.
@@ -29,7 +30,7 @@ public interface CarService {
      * @param page page number (0-based)
      * @param size number of cars per page
      * @return paginated response with available car DTOs
-     * @throws com.reservation.car.exception.InvalidReservationException if time period is invalid
+     * @throws InvalidReservationException if time period is invalid
      */
     Page<CarResponseDTO> findAvailableCars(Instant startTime, Instant endTime, int page, int size);
 }

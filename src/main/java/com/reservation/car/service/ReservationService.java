@@ -4,6 +4,9 @@ import java.util.UUID;
 
 import com.reservation.car.dto.ReservationRequestDTO;
 import com.reservation.car.dto.response.ReservationResponseDTO;
+import com.reservation.car.exception.CarNotFoundException;
+import com.reservation.car.exception.CarUnavailableException;
+import com.reservation.car.exception.InvalidReservationException;
 
 /**
  * Service interface for managing car reservations.
@@ -17,9 +20,9 @@ public interface ReservationService {
      * @param request the reservation request details
      * @param requestingUserId the ID of the user making the request (for authorization)
      * @return the created reservation DTO
-     * @throws com.reservation.car.exception.CarNotFoundException if car doesn't exist
-     * @throws com.reservation.car.exception.CarUnavailableException if time slot is unavailable
-     * @throws com.reservation.car.exception.InvalidReservationException if request violates business rules
+     * @throws CarNotFoundException if car doesn't exist
+     * @throws CarUnavailableException if time slot is unavailable
+     * @throws InvalidReservationException if request violates business rules
      */
     ReservationResponseDTO createReservation(ReservationRequestDTO request, UUID requestingUserId);
 
@@ -29,7 +32,7 @@ public interface ReservationService {
      * @param reservationId the reservation to cancel
      * @param userId the user requesting cancellation (for authorization)
      * @return the cancelled reservation DTO
-     * @throws com.reservation.car.exception.InvalidReservationException if cancellation is not allowed
+     * @throws InvalidReservationException if cancellation is not allowed
      */
     ReservationResponseDTO cancelReservation(UUID reservationId, UUID userId);
 }
